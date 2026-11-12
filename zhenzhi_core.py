@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
+import os
 import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
@@ -34,6 +36,7 @@ def init_db(db_path: Path | str = DB_PATH) -> None:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
+                password_salt TEXT NOT NULL DEFAULT '',
                 quota INTEGER NOT NULL DEFAULT 20,
                 student_verified INTEGER NOT NULL DEFAULT 0,
                 free_until TEXT,
@@ -41,6 +44,9 @@ def init_db(db_path: Path | str = DB_PATH) -> None:
             )
             """
         )
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(users)").fetchall()}
+        if "password_salt" not in columns:
+            conn.execute("ALTER TABLE users ADD COLUMN password_salt TEXT NOT NULL DEFAULT ''")
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS checkins (
@@ -94,8 +100,14 @@ def init_db(db_path: Path | str = DB_PATH) -> None:
     conn.close()
 
 
-def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode("utf-8")).hexdigest()
+def hash_password(password: str, salt: str) -> str:
+    digest = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        bytes.fromhex(salt),
+        200_000,
+    )
+    return digest.hex()
 
 
 def utc_now_iso() -> str:
@@ -105,10 +117,11 @@ def utc_now_iso() -> str:
 def create_user(username: str, password: str, db_path: Path | str = DB_PATH) -> bool:
     conn = get_connection(db_path)
     try:
+        salt = os.urandom(16).hex()
         with conn:
             conn.execute(
-                "INSERT INTO users(username, password_hash, created_at) VALUES(?, ?, ?)",
-                (username.strip(), hash_password(password), utc_now_iso()),
+                "INSERT INTO users(username, password_hash, password_salt, created_at) VALUES(?, ?, ?, ?)",
+                (username.strip(), hash_password(password, salt), salt, utc_now_iso()),
             )
         return True
     except sqlite3.IntegrityError:
@@ -121,16 +134,25 @@ def authenticate(username: str, password: str, db_path: Path | str = DB_PATH) ->
     conn = get_connection(db_path)
     row = conn.execute(
         """
-        SELECT id, username, quota, student_verified, free_until
+        SELECT id, username, quota, student_verified, free_until, password_hash, password_salt
         FROM users
-        WHERE username = ? AND password_hash = ?
+        WHERE username = ?
         """,
-        (username.strip(), hash_password(password)),
+        (username.strip(),),
     ).fetchone()
     conn.close()
     if not row:
         return None
-    return User(**dict(row))
+    candidate = hash_password(password, row["password_salt"])
+    if not hmac.compare_digest(candidate, row["password_hash"]):
+        return None
+    return User(
+        id=row["id"],
+        username=row["username"],
+        quota=row["quota"],
+        student_verified=row["student_verified"],
+        free_until=row["free_until"],
+    )
 
 
 def checkin(user_id: int, db_path: Path | str = DB_PATH, reward: int = 5) -> tuple[bool, str]:
