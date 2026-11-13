@@ -1,0 +1,8 @@
+:root { color-scheme: light; font-family: system-ui, sans-serif; background: #f5f7fb; color: #172033; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { max-width: 960px; margin: 0 auto; padding: 48px 24px; }
+nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 48px; }
+.card { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 8px 30px #17203312; }
+button { border: 0; border-radius: 8px; padding: 10px 16px; background: #315efb; color: white; cursor: pointer; }
+a { color: #315efb; text-decoration: none; }
