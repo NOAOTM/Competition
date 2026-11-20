@@ -20,8 +20,9 @@ for /f %%C in ('docker compose --profile local-llm ps --status running -q 2^>nul
 set OLLAMA_MODE=container
 for /f %%M in ('powershell -NoProfile -ExecutionPolicy Bypass -File "scripts\detect-ollama.ps1"') do set OLLAMA_MODE=%%M
 if /i "%OLLAMA_MODE%"=="host-unavailable" (
-  echo [错误] .env 选择复用本机 Ollama，但本机 Ollama 当前未运行。请启动 Ollama 后重试；不会切换到另一个模型目录。
-  exit /b 1
+  echo [警告] .env 选择复用本机 Ollama，但本机 Ollama 当前未运行。
+  echo [提示] 将继续启动应用；模型功能暂不可用。启动 Ollama 后重新运行 start.cmd；不会切换模型目录或下载 Ollama。
+  set OLLAMA_MODE=host
 )
 set OLLAMA_PORT_VALUE=11434
 for /f "tokens=1,* delims==" %%A in ('findstr /b /c:"OLLAMA_PORT=" .env') do set OLLAMA_PORT_VALUE=%%B
@@ -38,7 +39,7 @@ if not defined PROJECT_RUNNING (
   )
 )
 if /i "%OLLAMA_MODE%"=="host" (
-  echo 已检测到本机 Ollama，复用其模型目录。
+  echo 使用配置的本机 Ollama 地址，不会切换模型目录。
   docker compose up -d --wait --wait-timeout 300 backend frontend
 ) else (
   docker compose --profile local-llm up -d --wait --wait-timeout 300
