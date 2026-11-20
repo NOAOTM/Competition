@@ -1,10 +1,29 @@
-fastapi==0.115.6
-uvicorn[standard]==0.34.0
-sqlalchemy==2.0.36
-pydantic-settings==2.7.1
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
-python-multipart==0.0.20
-alembic==1.14.0
-pytest==8.3.4
-httpx==0.28.1
+# API and persistence
+fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic
+pydantic-settings
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt<4.1
+python-multipart
+alembic
+httpx
+
+# Document processing and exports
+PyMuPDF
+pdfplumber
+python-docx
+python-pptx
+graphviz
+Pillow
+pytesseract
+
+# CSV/XLSX charts
+pandas
+openpyxl
+matplotlib
+
+# Tests
+pytest

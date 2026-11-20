@@ -1,0 +1,11 @@
+.env
+backend/.env
+data/
+output/
+uploads/
+logs/
+node_modules/
+.next/
+__pycache__/
+*.py[cod]
+*.db
