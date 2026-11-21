@@ -15,13 +15,19 @@ class User(Base):
     nickname: Mapped[str] = mapped_column(String(100))
     grade: Mapped[str] = mapped_column(String(50))
     major: Mapped[str] = mapped_column(String(100))
+    phone: Mapped[str | None] = mapped_column(String(20), unique=True, nullable=True)
     balance: Mapped[int] = mapped_column(Integer, default=100)
+    quota: Mapped[int] = mapped_column(Integer, default=100)
     verification_status: Mapped[str] = mapped_column(String(20), default="未认证")
+    auth_status: Mapped[str] = mapped_column(String(20), default="未认证")
+    quota_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     verification_image_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
     last_check_in_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     usages: Mapped[list["QuotaUsage"]] = relationship(back_populates="user")
+    calendar_entries: Mapped[list["CalendarEntry"]] = relationship(back_populates="user")
 
 
 class QuotaUsage(Base):
@@ -54,3 +60,17 @@ class ToolRequest(Base):
     input_text: Mapped[str] = mapped_column(Text)
     output_text: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class CalendarEntry(Base):
+    __tablename__ = "calendar_entries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    starts_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    kind: Mapped[str] = mapped_column(String(30), default="reminder")
+    details: Mapped[str] = mapped_column(Text, default="")
+    source: Mapped[str] = mapped_column(String(30), default="manual")
+    user: Mapped[User] = relationship(back_populates="calendar_entries")
