@@ -140,13 +140,14 @@ async def _run_task(task_id: str, user_id: int, upload_path: Path, question: str
                 output_text=str(knowledge.get("one_sentence_summary", "")),
             ))
             db.commit()
+            balance = user.balance
         finally:
             db.close()
         summary = str(knowledge.get("one_sentence_summary", "原文未说明"))
         task.update(
             status="done", progress=100, stage="完成",
             message=f"文献导读已完成，消耗 {cost} 额度。",
-            result={"summary": summary, "downloads": file_ids, "warnings": warnings},
+            result={"summary": summary, "downloads": file_ids, "warnings": warnings, "balance": balance},
         )
     except Exception as exc:
         task.update(status="error", stage="处理失败", message="本次未完成，不会扣除额度。", error=str(exc))

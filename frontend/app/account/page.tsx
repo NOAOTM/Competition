@@ -26,6 +26,15 @@ export default function AccountPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [smsCooldown, setSmsCooldown] = useState(0);
+  const expectedCaptchaAnswer = captcha?.question.match(/^\s*(\d+)\s*\+\s*(\d+)/);
+  const captchaValid = Boolean(expectedCaptchaAnswer && captchaAnswer.trim() === String(Number(expectedCaptchaAnswer[1]) + Number(expectedCaptchaAnswer[2])));
+
+  useEffect(() => {
+    if (smsCooldown <= 0) return;
+    const timer = window.setTimeout(() => setSmsCooldown((value) => Math.max(0, value - 1)), 1000);
+    return () => window.clearTimeout(timer);
+  }, [smsCooldown]);
 
   async function loadCaptcha() {
     try { setCaptcha(await api<Captcha>("/api/v1/account/captcha")); }
@@ -39,6 +48,8 @@ export default function AccountPage() {
 
   async function sendSms() {
     setError(""); setNotice("");
+    if (!/^1[3-9]\d{9}$/.test(phone)) { setError("请输入有效的 11 位手机号"); return; }
+    if (!captchaValid || !captcha) { setError("请先正确完成算术验证码"); return; }
     try {
       const response = await fetch("/api/v1/account/sms-code", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -48,6 +59,7 @@ export default function AccountPage() {
       if (!response.ok) throw new Error(body.detail ?? "验证码发送失败");
       setDemoCode(body.code ?? "");
       setNotice(body.message);
+      setSmsCooldown(60);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "验证码发送失败"); }
   }
 
@@ -95,6 +107,12 @@ export default function AccountPage() {
     } catch (reason) { setError(reason instanceof Error ? reason.message : "签到失败"); }
   }
 
+  function logout() {
+    localStorage.removeItem("token");
+    setUser(null);
+    setNotice("已退出登录");
+  }
+
   async function verifyCard(event: FormEvent) {
     event.preventDefault();
     if (!studentCard) { setError("请先选择学生证或校园卡图片"); return; }
@@ -121,7 +139,7 @@ export default function AccountPage() {
     {user ? <section className="subPageCard accountCard">
       <div className="accountHeader"><div><h2>{user.nickname}</h2><p>{user.phone || user.username} · {user.grade} · {user.major}</p></div><div className="quotaBox"><b>{user.balance}</b><span>可用额度</span></div></div>
       <p>认证状态：{user.auth_status || user.verification_status}　·　总额度：{user.quota}</p>
-      <button onClick={checkIn}>每日签到 +10</button>
+      <button onClick={checkIn}>每日签到 +10</button> <button type="button" onClick={logout}>退出登录</button>
       {user.is_admin && <p><Link className="backLink" href="/admin">打开管理员控制台 →</Link></p>}
       <h2>学生身份认证</h2>
       <p>图片会发送到已配置的视觉模型进行类别、学校、姓名与明显修图痕迹检查。默认使用本地模型 qwen2.5vl:7b；请先运行 model.cmd pull qwen2.5vl:7b。</p>
@@ -136,7 +154,7 @@ export default function AccountPage() {
         <form className="accountForm" onSubmit={register}>
           <input required value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="11 位手机号" pattern="1[3-9][0-9]{9}" />
           <div className="captchaRow"><span>{captcha?.question ?? "验证码暂不可用"}</span><input value={captchaAnswer} onChange={(event) => setCaptchaAnswer(event.target.value)} placeholder="算术答案" /><button type="button" onClick={loadCaptcha}>换一题</button></div>
-          <div className="captchaRow"><input required value={smsCode} onChange={(event) => setSmsCode(event.target.value)} placeholder="6 位短信验证码" /><button type="button" onClick={sendSms}>获取验证码</button></div>
+          <div className="captchaRow"><input required value={smsCode} onChange={(event) => setSmsCode(event.target.value)} placeholder="6 位短信验证码" /><button type="button" disabled={!captchaValid || !/^1[3-9]\d{9}$/.test(phone) || smsCooldown > 0} onClick={sendSms}>{smsCooldown ? `${smsCooldown}s 后重试` : "获取验证码"}</button></div>
           {demoCode && <div className="demoSms">开发模式演示验证码：<b>{demoCode}</b>（已在后端控制台输出）</div>}
           <input required minLength={8} type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="密码（至少 8 位）" />
           <input required value={nickname} onChange={(event) => setNickname(event.target.value)} placeholder="姓名 / 昵称" />

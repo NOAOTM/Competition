@@ -12,7 +12,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-ENV NEXT_TELEMETRY_DISABLED=1 BACKEND_API_URL=http://backend:8000
+ENV NEXT_TELEMETRY_DISABLED=1 BACKEND_API_URL=http://backend:8000 PHOTOCRAFT_URL=http://photocraft:8080
 RUN npm run build
 
 FROM node:20-alpine AS runner
